@@ -1,0 +1,8 @@
+{
+ "name": "Omni secure form",
+ "short_name": "Omni",
+ "start_url": "./",
+ "display": "standalone",
+ "background_color": "#fafaf8",
+ "theme_color": "#1f5fbf"
+}

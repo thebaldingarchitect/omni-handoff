@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-WWp29oPuRJZMlWD8r47HptqDAZw03q3EffLY2vxULCM='; style-src 'sha256-V3ddkzzc8qUI4wm0467ClQs4l7ZPnKqOHl8C1MhsJjU='; manifest-src 'self'; base-uri 'none'; form-action 'none'; connect-src 'none'; img-src 'none'; object-src 'none'">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Omni secure form</title>
+<style>:root{--bg:#fafaf8;--fg:#1b1b1a;--muted:#5d5d58;--line:#c9c9c2;--accent:#1f5fbf;--accent-fg:#fff;--warn:#8a1c1c;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#f0f0ec;--muted:#a9a9a2;--line:#3a3a37;--accent:#6aa3ff;--accent-fg:#0b0b0b;--warn:#ff9c9c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif}
+main{max-width:34rem;margin:0 auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
+h1{font-size:1.1rem;margin:8px 0 16px;color:var(--muted);font-weight:600}
+.big{font-size:1.25rem;font-weight:600}
+.hint,.build{color:var(--muted);font-size:.9rem}
+label{display:block;margin:16px 0 4px;font-weight:600}
+input,textarea{width:100%;min-height:48px;padding:10px 12px;font:inherit;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:10px}
+textarea{margin-top:12px;font-family:ui-monospace,Menlo,monospace;font-size:.8rem;word-break:break-all}
+button,.btn{display:block;width:100%;min-height:52px;margin:16px 0 0;padding:12px;font:inherit;font-weight:600;text-align:center;text-decoration:none;color:var(--accent-fg);background:var(--accent);border:0;border-radius:12px}
+button.secondary{color:var(--fg);background:transparent;border:1px solid var(--line)}
+.phrase{font-size:1.4rem;font-weight:700;padding:12px;border:2px solid var(--accent);border-radius:10px;text-align:center}
+.sas{font-size:1.6rem;font-weight:700;letter-spacing:.05em;text-align:center;font-variant-numeric:tabular-nums}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <h1>Omni secure form</h1>
+
+  <section data-view="loading"><p>Checking this link&hellip;</p></section>
+
+  <section data-view="error" hidden>
+    <p class="big" id="errmsg"></p>
+    <p>Nothing was sent. Go back to Telegram and ask Omni for a new link.</p>
+  </section>
+
+  <section data-view="inapp" hidden>
+    <p class="big">Please open this link in your normal browser.</p>
+    <p>Telegram&rsquo;s built-in browser is not safe for passwords. Tap the menu (&hellip; or the compass icon) and choose <strong>Open in Safari</strong> or <strong>Open in Chrome</strong>. Or copy the link below and paste it into your browser.</p>
+    <button type="button" id="copylink">Copy link</button>
+  </section>
+
+  <section data-view="form" hidden>
+    <p id="forwhat" class="big"></p>
+    <div id="phrasebox" hidden>
+      <p>Your private phrase is:</p>
+      <p class="phrase" id="phrase"></p>
+      <p class="hint">If this is not the phrase you agreed with the admin, stop and do not type anything.</p>
+    </div>
+
+    <div data-fields="password" hidden>
+      <label for="u">Username or email</label>
+      <input id="u" type="text" inputmode="email" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+      <label for="p">Password</label>
+      <input id="p" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+      <label for="t">Two-step setup key <span class="hint">(optional)</span></label>
+      <input id="t" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+      <p class="hint">Only if the site gave you a long setup key when you turned on two-step sign-in. Not the 6-digit code.</p>
+    </div>
+    <div data-fields="otp" hidden>
+      <label for="code">Code from the text or email</label>
+      <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" autocapitalize="none" autocorrect="off" spellcheck="false">
+    </div>
+    <div data-fields="api_key" hidden>
+      <label for="key">Key or app password</label>
+      <input id="key" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+    </div>
+    <div data-fields="oauth" hidden>
+      <p>Google sign-in received. Tap the button to lock it so only Omni can open it.</p>
+    </div>
+
+    <button type="button" id="show" class="secondary" hidden>Show what I typed</button>
+    <button type="button" id="go">Lock it for Omni</button>
+    <p class="hint">Locking happens in this page. Nothing is sent over the internet by this page.</p>
+  </section>
+
+  <section data-view="done" hidden>
+    <p class="big">Locked. Now send it to Omni.</p>
+    <ol>
+      <li>Tap <strong>Send to Omni</strong>.</li>
+      <li>Choose the Omni chat in Telegram.</li>
+      <li>Press send.</li>
+    </ol>
+    <a id="share" class="btn" href="#" rel="noopener noreferrer">Send to Omni</a>
+    <p class="hint">If that does not open Telegram, copy the locked text and paste it into the Omni chat yourself.</p>
+    <textarea id="wire" readonly rows="4" aria-label="Locked text"></textarea>
+    <button type="button" id="copy" class="secondary">Copy locked text</button>
+  </section>
+
+  <section data-view="enrol-entry" hidden>
+    <p class="big">Set up this phone</p>
+    <p>Type the set-up code shown on the Mac.</p>
+    <label for="ecode">Set-up code</label>
+    <input id="ecode" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+    <button type="button" id="ego">Continue</button>
+  </section>
+
+  <section data-view="enrol" hidden>
+    <p class="big">Read these numbers to the admin</p>
+    <p class="sas" id="sas"></p>
+    <p>They must match the numbers on the Mac. If they do not match, stop.</p>
+    <p id="installhint" class="hint" hidden>For best results add this page to your Home Screen first, then open it from there and set up again.</p>
+    <a id="eshare" class="btn" href="#" rel="noopener noreferrer">Send set-up to Omni</a>
+    <textarea id="ewire" readonly rows="3" aria-label="Set-up text"></textarea>
+    <button type="button" id="ecopy" class="secondary">Copy set-up text</button>
+  </section>
+
+  <p class="build" id="build"></p>
+</main>
+<script>// OmniCrypto: browser-side primitives for the handoff page. No dependencies, no network.
+// Runs unchanged in a browser (secure context) and in Node >= 20 (globalThis.crypto).
+// HKDF-SHA256 is implemented over HMAC so the page does not depend on WebCrypto's HKDF import support.
+'use strict';
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(globalThis.crypto);
+  else root.OmniCrypto = factory(root.crypto);
+})(typeof self !== 'undefined' ? self : this, function (crypto) {
+  const subtle = crypto.subtle;
+  const te = new TextEncoder();
+  const PAD_TO = 64;
+
+  function concat() {
+    let n = 0; for (const a of arguments) n += a.length;
+    const out = new Uint8Array(n); let o = 0;
+    for (const a of arguments) { out.set(a, o); o += a.length; }
+    return out;
+  }
+  function b64uEnc(buf) {
+    const b = new Uint8Array(buf); let s = '';
+    for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function b64uDec(str) {
+    if (!/^[A-Za-z0-9_-]+$/.test(str)) throw new Error('bad_b64');
+    str = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (str.length % 4) str += '=';
+    const s = atob(str); const b = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+    return b;
+  }
+  async function sha256(data) { return new Uint8Array(await subtle.digest('SHA-256', data)); }
+  async function hmac(key, data) {
+    const k = await subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    return new Uint8Array(await subtle.sign('HMAC', k, data));
+  }
+  // HKDF-SHA256, L = 32 (one block): PRK = HMAC(salt, IKM); OKM = HMAC(PRK, info || 0x01)
+  async function hkdf32(ikm, salt, info) {
+    const prk = await hmac(salt, ikm);
+    return hmac(prk, concat(info, new Uint8Array([1])));
+  }
+  function padPayload(obj) {
+    const raw = te.encode(JSON.stringify(obj));
+    const extra = (PAD_TO - (raw.length % PAD_TO)) % PAD_TO;
+    const out = new Uint8Array(raw.length + extra); out.set(raw); out.fill(0x20, raw.length);
+    return out;
+  }
+  async function ecdhKey(label, rawPub) {
+    return subtle.importKey('raw', rawPub, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  }
+
+  // Browser -> Mac. handoffPubRaw: 65-byte uncompressed P-256 point. aad: Uint8Array. Returns the b64url body.
+  async function sealEnvelope(handoffPubRaw, kid, requestId, aad, payloadObj) {
+    const eph = await subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits']);
+    const ephPub = new Uint8Array(await subtle.exportKey('raw', eph.publicKey));
+    const peer = await ecdhKey('handoff', handoffPubRaw);
+    const shared = new Uint8Array(await subtle.deriveBits({ name: 'ECDH', public: peer }, eph.privateKey, 256));
+    const salt = await sha256(te.encode(requestId));
+    const keyBytes = await hkdf32(shared, salt, te.encode('omni-handoff-v1|' + kid));
+    shared.fill(0);
+    const aes = await subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['encrypt']);
+    keyBytes.fill(0);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const pt = padPayload(payloadObj);
+    const ct = new Uint8Array(await subtle.encrypt({ name: 'AES-GCM', iv, additionalData: aad }, aes, pt));
+    pt.fill(0);
+    return b64uEnc(concat(ephPub, iv, ct));
+  }
+
+  function sigInput(aad, bodyB64) {
+    return concat(te.encode('OMNI1-sig\u0000'), aad, new Uint8Array([0]), te.encode(bodyB64));
+  }
+  // ECDSA P-256 / SHA-256. WebCrypto returns raw r||s (64 bytes).
+  async function signEnvelope(signPrivKey, aad, bodyB64) {
+    return new Uint8Array(await subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, signPrivKey, sigInput(aad, bodyB64)));
+  }
+
+  // Device keys: non-extractable private keys (storable in IndexedDB as CryptoKey objects).
+  async function generateDeviceKeys() {
+    const sign = await subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+    const ecdh = await subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits']);
+    return {
+      signPriv: sign.privateKey, ecdhPriv: ecdh.privateKey,
+      signPub: new Uint8Array(await subtle.exportKey('raw', sign.publicKey)),
+      ecdhPub: new Uint8Array(await subtle.exportKey('raw', ecdh.publicKey)),
+    };
+  }
+
+  // Mac -> device request. wire = "OMNIQ1.<device_id>.<request_id>.<b64u body>". Returns the payload object.
+  async function openRequest(ecdhPriv, wire) {
+    const p = wire.split('.');
+    if (p.length !== 4 || p[0] !== 'OMNIQ1') throw new Error('not_request');
+    const deviceId = p[1], requestId = p[2];
+    const body = b64uDec(p[3]);
+    if (body.length < 65 + 12 + 16 || body[0] !== 4) throw new Error('bad_body');
+    const peer = await ecdhKey('mac-eph', body.slice(0, 65));
+    const shared = new Uint8Array(await subtle.deriveBits({ name: 'ECDH', public: peer }, ecdhPriv, 256));
+    const salt = await sha256(te.encode(requestId));
+    const keyBytes = await hkdf32(shared, salt, te.encode('omni-request-v1|' + deviceId));
+    shared.fill(0);
+    const aes = await subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['decrypt']);
+    keyBytes.fill(0);
+    const aad = te.encode('OMNI1|req|' + deviceId + '|' + requestId);
+    const pt = new Uint8Array(await subtle.decrypt({ name: 'AES-GCM', iv: body.slice(65, 77), additionalData: aad }, aes, body.slice(77)));
+    const obj = JSON.parse(new TextDecoder().decode(pt).replace(/ +$/, ''));
+    pt.fill(0);
+    return obj;
+  }
+
+  // 20-digit short authentication string, 5 groups of 4. Matches omni_ref.envelope.sas_digits.
+  async function sasDigits(enrolId, signPub, ecdhPub) {
+    const h = await sha256(concat(te.encode('omni-sas-v1\u0000' + enrolId + '\u0000'), signPub, ecdhPub));
+    let n = 0n; for (let i = 0; i < 9; i++) n = (n << 8n) | BigInt(h[i]);
+    const s = (n % (10n ** 20n)).toString().padStart(20, '0');
+    return [0, 4, 8, 12, 16].map(i => s.slice(i, i + 4)).join(' ');
+  }
+
+  function buildAad(kid, requestId, personId, siteId, kind) {
+    const f = /^[A-Za-z0-9_.:-]{1,64}$/;
+    for (const x of [kid, requestId, personId, siteId, kind]) if (!f.test(x)) throw new Error('bad_aad_field');
+    return te.encode(['OMNI1', kid, requestId, personId, siteId, kind].join('|'));
+  }
+
+  return { b64uEnc, b64uDec, sealEnvelope, signEnvelope, generateDeviceKeys, openRequest, sasDigits, buildAad, concat, sha256 };
+});
+
+(function () {
+  'use strict';
+  const CFG = { kid: 'k10da8785', pub: 'BOy1snMnLTS601ftmF6C0XCpAGQ_5X5xPu3SyFo0nbPQ7-PsUyYAI5wz19nSgVJNReCUJWdkxj3k7yh4-bGBEE4', origin: 'https://thebaldingarchitect.github.io/omni-handoff/', build: '2026-10-26', allowInApp: false };
+  const C = OmniCrypto;
+  const ID = /^[A-Za-z0-9_-]{4,64}$/;
+  const FIELD = /^[A-Za-z0-9_.:-]{1,64}$/;
+  const KINDS = ['password', 'otp', 'api_key', 'oauth'];
+  const $ = (id) => document.getElementById(id);
+  let ctx = null;    // current request: { r, k, p, s, t, x, d, ph }
+  let device = null; // { deviceId, signPriv, ecdhPriv, signPub, ecdhPub }
+
+  function show(view) { for (const v of document.querySelectorAll('[data-view]')) v.hidden = v.dataset.view !== view; }
+  function fail(msg) { $('errmsg').textContent = msg; show('error'); }
+  function standalone() { return navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches); }
+  function inApp() {
+    if (CFG.allowInApp || standalone()) return false;
+    const ua = navigator.userAgent || '';
+    return /Telegram/i.test(ua) || /; wv\)/.test(ua) || (/(iPhone|iPad|iPod)/.test(ua) && !/Safari\//.test(ua));
+  }
+
+  // ---- device keys (tier 2), kept as non-extractable CryptoKeys in IndexedDB ----
+  function idb() {
+    return new Promise((res, rej) => { const r = indexedDB.open('omni', 1); r.onupgradeneeded = () => r.result.createObjectStore('keys'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  }
+  async function loadDevice() {
+    try { const db = await idb(); return await new Promise((res, rej) => { const q = db.transaction('keys').objectStore('keys').get('device'); q.onsuccess = () => res(q.result || null); q.onerror = () => rej(q.error); }); }
+    catch (e) { return null; }
+  }
+  async function saveDevice(d) {
+    const db = await idb();
+    await new Promise((res, rej) => { const tx = db.transaction('keys', 'readwrite'); tx.objectStore('keys').put(d, 'device'); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+  }
+  async function deviceIdFor(signPub, ecdhPub) { return 'd' + C.b64uEnc(await C.sha256(C.concat(signPub, ecdhPub))).slice(0, 20); }
+
+  function shareHref(text) { return 'https://t.me/share/url?url=' + encodeURIComponent(CFG.origin) + '&text=' + encodeURIComponent(text); }
+  async function copy(text, btn) {
+    try { await navigator.clipboard.writeText(text); btn.textContent = 'Copied'; }
+    catch (e) { const ta = btn.parentNode.querySelector('textarea'); if (ta) { ta.focus(); ta.select(); } btn.textContent = 'Select and copy it'; }
+  }
+
+  // ---- enrolment ----
+  async function enrol(enrolId) {
+    if (!ID.test(enrolId)) return fail('That set-up code is not valid.');
+    const keys = await C.generateDeviceKeys();
+    const deviceId = await deviceIdFor(keys.signPub, keys.ecdhPub);
+    device = { deviceId, signPriv: keys.signPriv, ecdhPriv: keys.ecdhPriv, signPub: keys.signPub, ecdhPub: keys.ecdhPub };
+    await saveDevice(device);
+    try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (e) { /* best effort */ }
+    $('sas').textContent = await C.sasDigits(enrolId, keys.signPub, keys.ecdhPub);
+    const wire = 'OMNIE1.' + enrolId + '.' + C.b64uEnc(C.concat(keys.signPub, keys.ecdhPub));
+    $('ewire').value = wire;
+    $('eshare').href = shareHref(wire);
+    $('ecopy').onclick = () => copy(wire, $('ecopy'));
+    $('installhint').hidden = standalone();
+    show('enrol');
+  }
+
+  // ---- request context ----
+  function parseHash() { const h = location.hash.replace(/^#/, ''); return new URLSearchParams(h); }
+  function validateCtx(c, needExp) {
+    for (const f of ['r', 'k', 'p', 's', 't']) if (!c[f] || !FIELD.test(c[f])) return 'This link is not valid.';
+    if (!ID.test(c.r) || !ID.test(c.k)) return 'This link is not valid.';
+    if (KINDS.indexOf(c.t) < 0) return 'This link is not valid.';
+    if (c.k !== CFG.kid) return 'This form is out of date. Ask Omni for a new link.';
+    if (needExp) { const x = Number(c.x); if (!Number.isFinite(x) || x * 1000 < Date.now()) return 'This link has expired.'; }
+    return null;
+  }
+
+  function renderForm(c) {
+    ctx = c;
+    for (const g of document.querySelectorAll('[data-fields]')) g.hidden = g.dataset.fields !== c.t;
+    const what = { password: 'sign-in details', otp: 'one-time code', api_key: 'key', oauth: 'Google sign-in' }[c.t];
+    $('forwhat').textContent = c.t === 'oauth' ? 'Omni needs to finish connecting your Google account.' : 'Omni needs your ' + (c.d || c.s) + ' ' + what + '.';
+    if (c.ph) { $('phrase').textContent = c.ph; $('phrasebox').hidden = false; }
+    $('show').hidden = !(c.t === 'password' || c.t === 'api_key');
+    show('form');
+  }
+
+  async function submit() {
+    const c = ctx;
+    let payload;
+    if (c.t === 'password') {
+      const u = $('u').value.trim(), p = $('p').value, t = $('t').value.replace(/\s+/g, '');
+      if (!u || !p) return alert('Please fill in the username and password.');
+      payload = { u, p }; if (t) payload.t = t;
+    } else if (c.t === 'otp') {
+      const code = $('code').value.replace(/\s+/g, ''); if (!code) return alert('Please type the code.'); payload = { code };
+    } else if (c.t === 'api_key') {
+      const k = $('key').value.trim(); if (!k) return alert('Please paste the key.'); payload = { k };
+    } else payload = { code: c.code };
+    $('go').disabled = true;
+    try {
+      const aad = C.buildAad(c.k, c.r, c.p, c.s, c.t);
+      const body = await C.sealEnvelope(C.b64uDec(CFG.pub), c.k, c.r, aad, payload);
+      let wire = 'OMNI1.' + c.k + '.' + c.r + '.' + body;
+      if (device) { const sig = await C.signEnvelope(device.signPriv, aad, body); wire += '.' + device.deviceId + '.' + C.b64uEnc(sig); }
+      // wipe everything the person typed
+      for (const el of document.querySelectorAll('input')) el.value = '';
+      payload = null; if (ctx) ctx.code = undefined;
+      $('wire').value = wire; $('share').href = shareHref(wire);
+      $('copy').onclick = () => copy(wire, $('copy'));
+      show('done');
+    } catch (e) { fail('Could not lock the details. Please try again.'); }
+  }
+
+  async function init() {
+    $('build').textContent = 'Form version ' + CFG.build + ' · key ' + CFG.kid;
+    if (window.top !== window.self) return fail('Open this link directly, not inside another page.');
+    if (inApp()) { $('copylink').onclick = () => copy(location.href, $('copylink')); return show('inapp'); }
+    device = await loadDevice();
+    $('go').onclick = submit;
+    $('show').onclick = () => { for (const id of ['p', 'key']) { const el = $(id); el.type = el.type === 'password' ? 'text' : 'password'; } };
+    $('ego').onclick = () => enrol($('ecode').value.trim());
+
+    // OAuth landing: ?code=...&state=<r~p~s>. Strip the query at once so the code is not left in history.
+    const q = new URLSearchParams(location.search);
+    if (q.has('code') || q.has('error')) {
+      const code = q.get('code'), state = q.get('state') || '', err = q.get('error');
+      history.replaceState(null, '', location.pathname);
+      if (err) return fail('Google did not finish the sign-in.');
+      const parts = state.split('~');
+      if (parts.length !== 3) return fail('This link is not valid.');
+      const c = { r: parts[0], k: CFG.kid, p: parts[1], s: parts[2], t: 'oauth', code };
+      const bad = validateCtx(c, false); if (bad) return fail(bad);
+      return renderForm(c);
+    }
+    const h = parseHash();
+    if (h.has('e')) return enrol(h.get('e'));
+    if (h.has('q')) {                       // tier 2: request sealed to this phone
+      if (!device) return fail('This phone is not set up with Omni yet. Ask the admin.');
+      try {
+        const wire = h.get('q'); const parts = wire.split('.');
+        if (parts[1] !== device.deviceId) return fail('This link is for a different phone.');
+        const o = await C.openRequest(device.ecdhPriv, wire);
+        const c = { r: parts[2], k: o.k, p: o.p, s: o.s, t: o.t, x: o.x, d: o.d, ph: o.ph };
+        const bad = validateCtx(c, true); if (bad) return fail(bad);
+        return renderForm(c);
+      } catch (e) { return fail('This link could not be opened. Ask Omni for a new one.'); }
+    }
+    if (h.has('r')) {                       // tier 1: plain request
+      const c = { r: h.get('r'), k: h.get('k'), p: h.get('p'), s: h.get('s'), t: h.get('t'), x: h.get('x'), d: h.get('d') };
+      const bad = validateCtx(c, true); if (bad) return fail(bad);
+      return renderForm(c);
+    }
+    if (standalone() && !device) return show('enrol-entry');
+    fail('Open the link that Omni sent you.');
+  }
+  init();
+})();
+</script>
+</body>
+</html>
